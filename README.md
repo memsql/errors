@@ -1,3 +1,6 @@
+
+[![GoDoc](https://godoc.org/github.com/memsql/errors?status.svg)](https://pkg.go.dev/github.com/memsql/errors)
+
 Package errors provides an API for creating exceptions and alerting.
 
 This is intended to be a replacement for Go's standard library errors package.
