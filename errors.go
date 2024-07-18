@@ -204,7 +204,7 @@ func Wrapf(exception error, format string, a ...interface{}) error {
 	if exception == nil {
 		return nil
 	}
-	return Errorf("%s: %w", fmt.Sprintf(format, a...), exception)
+	return Errorf(format+": %w", append(a, exception)...)
 }
 
 // Expand rewites an error message, when an error is non-nil.
@@ -220,10 +220,7 @@ func Expand(exception *error, format string, a ...interface{}) {
 	if *exception == nil {
 		return // nothing to do
 	}
-
-	ex := Errorf("%s: %w", fmt.Sprintf(format, a...), *exception)
-	ex.arg = append(ex.arg, a...)
-	*exception = ex
+	*exception = Errorf(format+": %w", append(a, exception)...)
 
 	if recovered {
 		*exception = Alert(*exception)
