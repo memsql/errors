@@ -220,7 +220,7 @@ func Expand(exception *error, format string, a ...interface{}) {
 	if *exception == nil {
 		return // nothing to do
 	}
-	*exception = Errorf(format+": %w", append(a, exception)...)
+	*exception = Errorf(format+": %w", append(a, *exception)...)
 
 	if recovered {
 		*exception = Alert(*exception)
