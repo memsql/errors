@@ -204,7 +204,7 @@ func Wrapf(exception error, format string, a ...interface{}) error {
 	if exception == nil {
 		return nil
 	}
-	return Errorf(format+": %w", append(a, exception)...)
+	return Errorf(format+": %w", concat(a, exception)...)
 }
 
 // Expand rewites an error message, when an error is non-nil.
@@ -220,7 +220,7 @@ func Expand(exception *error, format string, a ...interface{}) {
 	if *exception == nil {
 		return // nothing to do
 	}
-	*exception = Errorf(format+": %w", append(a, *exception)...)
+	*exception = Errorf(format+": %w", concat(a, *exception)...)
 
 	if recovered {
 		*exception = Alert(*exception)
@@ -275,4 +275,12 @@ func ExpungeOnce(exception *error, format string, a ...interface{}) {
 	}
 
 	Expunge(exception, format, a...)
+}
+
+// concat is like append(), without side effects. So the slice passed in will not be changed (even if it has high capacity).
+func concat(head []any, tail ...any) []any {
+	result := make([]any, 0, len(head) + len(tail))
+	result = append(result, head...)
+	result = append(result, tail...)
+	return result
 }
