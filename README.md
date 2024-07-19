@@ -1,5 +1,15 @@
+# errors - API for creating exceptions and alerting
 
 [![GoDoc](https://godoc.org/github.com/memsql/errors?status.svg)](https://pkg.go.dev/github.com/memsql/errors)
+![unit tests](https://github.com/memsql/errors/actions/workflows/go.yml/badge.svg)
+[![report card](https://goreportcard.com/badge/github.com/memsql/errors)](https://goreportcard.com/report/github.com/memsql/errors)
+[![codecov](https://codecov.io/gh/memsql/errors/branch/main/graph/badge.svg)](https://codecov.io/gh/memsql/errors)
+
+Install:
+
+	go get github.com/memsql/errors
+
+---
 
 Package errors provides an API for creating exceptions and alerting.
 
