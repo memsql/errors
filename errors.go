@@ -279,8 +279,8 @@ func ExpungeOnce(exception *error, format string, a ...interface{}) {
 
 // concat is like append(), without side effects. So the slice passed in will not be changed (even if it has high capacity).
 func concat(head []any, tail ...any) []any {
-	result := make([]any, 0, len(head) + len(tail))
-	result = append(result, head...)
+	result := make([]any, len(head), len(head) + len(tail))
+	copy(result, head)
 	result = append(result, tail...)
 	return result
 }
