@@ -161,7 +161,8 @@ func alert(exception error) error {
 	defer timer.Stop()
 
 	done := make(chan struct{})
-	finish := sync.OnceFunc(func() {close(done)})
+	finish := func() {close(done)}
+	var once sync.Once
 	var mu sync.Mutex
 	
 	// start a goroutine for each handler
@@ -185,7 +186,7 @@ func alert(exception error) error {
 			default:
 				e.id[provider] = id
 				if len(e.id) == len(capture) {
-					finish()
+					once.Do(finish)
 				}
 			}
 		}()
@@ -197,8 +198,8 @@ waitLoop:
 		select {
 		case <- timer.C:
 			mu.Lock()
-			defer mu.Unlock()
-			finish()
+			once.Do(finish)
+			mu.Unlock()
 		case <- done:
 			break waitLoop
 		}
