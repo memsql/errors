@@ -5,10 +5,14 @@ import (
 	"log"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	pkgerrors "github.com/pkg/errors"
 )
+
+// CaptureTimeout limits how long to wait for a capture ID to be returned from a capture handler.
+var CaptureTimeout = 500 * time.Millisecond
 
 type CaptureProvider string // i.e. "sentry"
 
@@ -117,11 +121,12 @@ func alert(exception error) error {
 	// infinite recursion. Here, we try to prevent that. This is relatively expensive, but we're alerting, which
 	// shouldn't happen often.
 	pc := make([]uintptr, 42)
-	runtime.Callers(1, pc) // skip 1 (runtime.Callers)
+	runtime.Callers(1, pc) // skip 1 (the one skipped is runtime.Callers)
 	cf := runtime.CallersFrames(pc)
 	us, _ := cf.Next()
 	for them, ok := cf.Next(); ok; them, ok = cf.Next() {
-		if us.Func.Name() == them.Func.Name() {
+		// use HasPrefix here, not simple equality, because handlers are called from goroutine (below)
+		if strings.HasPrefix(them.Func.Name(), us.Func.Name()) {
 			log.Printf("cannot alert, recursion detected (%s): %+v", us.Func.Name(), exception)
 			return exception // don't recurse again
 		}
@@ -149,18 +154,57 @@ func alert(exception error) error {
 		return true
 	})
 
+	// Run handlers in goroutines, so that if one handler is deadlocked
+	// it does not prevent others from running, or us from returning.
+	
+	timer := time.NewTimer(CaptureTimeout)
+	defer timer.Stop()
+
+	done := make(chan struct{})
+	finish := func() {close(done)}
+	var once sync.Once
+	var mu sync.Mutex
+	
+	// start a goroutine for each handler
 	for provider, handler := range capture {
-		defer func() {
-			if r := recover(); r != nil {
-				log.Printf("failed to capture exception (%q): %+v", provider, r)
+		provider := provider
+		handler := handler
+		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("failed to capture exception (%q): %+v", provider, r)
+				}
+			}()
+
+			id := handler(exception, arg...)
+
+			mu.Lock()
+			defer mu.Unlock()
+			select {
+			case <-done:
+				// we are too late
+			default:
+				e.id[provider] = id
+				if len(e.id) == len(capture) {
+					once.Do(finish)
+				}
 			}
 		}()
+	}
 
-		id := handler(exception, arg...)
-		if id != "" {
-			e.id[provider] = id
+	// wait until done or timed out
+waitLoop:
+	for {
+		select {
+		case <- timer.C:
+			mu.Lock()
+			once.Do(finish)
+			mu.Unlock()
+		case <- done:
+			break waitLoop
 		}
 	}
+	
 	return e
 }
 

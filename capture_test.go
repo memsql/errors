@@ -3,6 +3,7 @@ package errors_test
 import (
 	"fmt"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -101,4 +102,51 @@ func TestCaptureRecurse(t *testing.T) {
 	if !errors.As(got, &captured) {
 		t.Errorf("alert did not capture")
 	}
+}
+
+func TestCaptureTimeout(t *testing.T) {
+	var called atomic.Uint64 // how many handlers have been called
+	var returned atomic.Uint64 // how many returned
+	n := 5 // how many slow handlers we will register
+	slow := errors.CaptureTimeout/time.Duration(n) // fastest duration of a slow handler
+	
+	slowHandler := func(ex error, arg ...any) errors.CaptureID {
+		c := called.Add(1)
+		defer returned.Add(1)
+		
+		// slow so that if multiple handlers are registered, capture will timeout
+		time.Sleep(time.Duration(c+1) * slow) // use count to make each handler slower than the one before
+		return errors.CaptureID(fmt.Sprintf("slowHandler %d", c))
+	}
+
+	for i := 0; i < n; i++ {
+		name := errors.CaptureProvider(fmt.Sprintf("slowHandler %d", i+1))
+		errors.RegisterCapture(name, slowHandler)
+		defer errors.UnregisterCapture(name)
+	}
+
+	beforeAlert := time.Now()
+	err := errors.Alertf(t.Name())
+	howLong := time.Since(beforeAlert)
+
+	// make sure we didn't wait much longer than CaptureTimeout
+	if howLong > errors.CaptureTimeout + (10 * time.Millisecond) {
+		t.Errorf("alert to %d handlers took longer than timeout by %s", n, howLong - errors.CaptureTimeout)
+	}
+
+	if int(called.Load()) != n {
+		t.Errorf("expected to call %d handlers, called %d", n, called.Load())
+	}
+	
+	// we don't expect the alert to wait for all handlers
+	if returned.Load() >= called.Load() {
+		t.Error("alert waited for all slow handlers to return")
+	}
+
+	// some handlers should be fast enough that alert waits for them
+	if returned.Load() == 0 {
+		t.Errorf("alert did not wait for any handlers")
+	}
+
+	t.Log(err) // should show capture IDs returned from faster handlers, but not slower handlers
 }
