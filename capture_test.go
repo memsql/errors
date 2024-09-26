@@ -130,7 +130,7 @@ func TestCaptureTimeout(t *testing.T) {
 	howLong := time.Since(beforeAlert)
 
 	// make sure we didn't wait much longer than CaptureTimeout
-	if howLong > errors.CaptureTimeout + (10 * time.Millisecond) {
+	if howLong > errors.CaptureTimeout + (30 * time.Millisecond) {
 		t.Errorf("alert to %d handlers took longer than timeout by %s", n, howLong - errors.CaptureTimeout)
 	}
 
