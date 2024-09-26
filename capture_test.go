@@ -126,7 +126,7 @@ func TestCaptureTimeout(t *testing.T) {
 	}
 
 	beforeAlert := time.Now()
-	err := errors.Alertf(t.Name())
+	err := errors.Alertf("%s", t.Name())
 	howLong := time.Since(beforeAlert)
 
 	// make sure we didn't wait much longer than CaptureTimeout
