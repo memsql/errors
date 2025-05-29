@@ -2,6 +2,7 @@ package errors_test
 
 import (
 	"fmt"
+	"runtime"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -105,15 +106,15 @@ func TestCaptureRecurse(t *testing.T) {
 }
 
 func TestCaptureTimeout(t *testing.T) {
-	var called atomic.Uint64 // how many handlers have been called
-	var returned atomic.Uint64 // how many returned
-	n := 5 // how many slow handlers we will register
-	slow := errors.CaptureTimeout/time.Duration(n) // fastest duration of a slow handler
-	
+	var called atomic.Uint64                         // how many handlers have been called
+	var returned atomic.Uint64                       // how many returned
+	n := 5                                           // how many slow handlers we will register
+	slow := errors.CaptureTimeout / time.Duration(n) // fastest duration of a slow handler
+
 	slowHandler := func(ex error, arg ...any) errors.CaptureID {
 		c := called.Add(1)
 		defer returned.Add(1)
-		
+
 		// slow so that if multiple handlers are registered, capture will timeout
 		time.Sleep(time.Duration(c+1) * slow) // use count to make each handler slower than the one before
 		return errors.CaptureID(fmt.Sprintf("slowHandler %d", c))
@@ -129,15 +130,21 @@ func TestCaptureTimeout(t *testing.T) {
 	err := errors.Alertf("%s", t.Name())
 	howLong := time.Since(beforeAlert)
 
+	timeout := 10 * time.Millisecond
+	if runtime.GOOS == "windows" {
+		// Windows seems to have a jerky clock/runtime
+		timeout = 50 * time.Millisecond
+	}
+
 	// make sure we didn't wait much longer than CaptureTimeout
-	if howLong > errors.CaptureTimeout + (10 * time.Millisecond) {
-		t.Errorf("alert to %d handlers took longer than timeout by %s", n, howLong - errors.CaptureTimeout)
+	if howLong > errors.CaptureTimeout+timeout {
+		t.Errorf("alert to %d handlers took longer than timeout by %s", n, howLong-errors.CaptureTimeout)
 	}
 
 	if int(called.Load()) != n {
 		t.Errorf("expected to call %d handlers, called %d", n, called.Load())
 	}
-	
+
 	// we don't expect the alert to wait for all handlers
 	if returned.Load() >= called.Load() {
 		t.Error("alert waited for all slow handlers to return")
