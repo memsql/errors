@@ -16,11 +16,30 @@ func (s String) Errorf(format string, a ...interface{}) error {
 	}
 }
 
+// Wrap returns nil when passed nil, otherwise it returns an error such
+// that [errors.Is] returns true when compared to the String error or the
+// passed in error.  It leaves the error text unchanged.
+func (s String) Wrap(err error) error {
+	if err == nil {
+		return nil
+	}
+	return errorString{
+		error: WithStack(err),
+		s:     s,
+	}
+}
+
 type errorString struct {
 	error
 	s String
 }
 
+// Is returns true if the target matches the same underlying
+// String value (compared as a string)
 func (e errorString) Is(target error) bool {
 	return target == e.s
+}
+
+func (e errorString) Unwrap() error {
+	return e.error
 }
