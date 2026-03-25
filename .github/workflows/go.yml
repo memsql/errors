@@ -17,7 +17,7 @@ jobs:
         egress-policy: audit # TODO: change to 'egress-policy: block' after couple of runs
 
     - name: Install Go
-      uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32
+      uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417
       with:
         go-version: ${{ matrix.go-version }}
     - name: Checkout code
