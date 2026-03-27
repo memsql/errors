@@ -1,9 +1,9 @@
 module github.com/memsql/errors
 
-go 1.20
+go 1.21
 
 require (
-	github.com/google/go-cmp v0.6.0
+	github.com/google/go-cmp v0.7.0
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.9.0
 )
